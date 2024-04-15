@@ -5,6 +5,7 @@ import collections, dataclasses, functools, json, keyword, os, regex as re
 
 @dataclasses.dataclass
 class Bpe:
+  "Byte-pair encoding tokenizer"
   vocab: dict[int, bytes]
   merges: dict[(int, int), int]
   special_tokens: dict[str, int]
@@ -154,7 +155,7 @@ if __name__ == "__main__":
   # train tokenizer on whole dataset
   import dataset
   tok = Bpe.train(
-    dataset.raw(), 256 + 3,
+    dataset.raw(), 500,
     Bpe.python_pattern(),
     verbose=True,
   )

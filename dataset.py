@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import glob, json, typing, tokenizer
+import glob, json, regex as re, typing, tokenizer
 import jax, jax.numpy as jnp, jax.random as jr
 
 class EncDataset(typing.NamedTuple):
@@ -57,6 +57,29 @@ class CodeDataset(TextDataset):
 
     # join all found files together to form a dataset
     return cls(text="\n".join(str(f) for f in files))
+
+class ChatDataset(TextDataset):
+  @classmethod
+  def from_whatsapp(cls, chat_file: str):
+    "Take a WhatsApp chat and create a dataset from it"
+    with open(chat_file) as f:
+      chat = f.read()
+
+    # extract senders and messages (and remove time information)
+    lines = re.split(r"\d{1,2}/\d{1,2}/\d{1,2}, \d{2}:\d{2} - ([\w+ ?]+): ", chat)[1:]
+    senders, messages = lines[::2], lines[1::2]
+
+    # replace senders with generic names
+    assert len(set(senders)) == 2, "expected the chat to only have two members"
+    mapping = {sender: gen for gen, sender in zip("AB", set(senders))}
+    senders = [f"<{mapping[sender]}:> " for sender in senders]
+
+    # create text
+    text = ""
+    for sender, message in zip(senders, messages):
+      text = text + sender + message
+    
+    return cls(text=text)
 
 if __name__ == "__main__":
   print(CodeDataset.create().text)

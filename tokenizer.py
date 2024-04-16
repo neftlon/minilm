@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # this code is copied from https://github.com/karpathy/minbpe/blob/master/minbpe/regex.py
 
-import collections, config, dataclasses, functools, json, os, regex as re, tqdm
+import collections, dataclasses, functools, json, os, regex as re, tqdm
 
 @dataclasses.dataclass
 class Bpe:
@@ -157,16 +157,19 @@ class Bpe:
       compiled_split_pattern=re.compile(d["split_pattern"]),
     )
 
-if __name__ == "__main__":
+def main():
+  import config
+
   # obtain hyper parameters and dataset for this run
   hparams = config.get_config()
   dataset = hparams.get_text_dataset()
 
   # train tokenizer on whole dataset
   tok = Bpe.train(
-    dataset.text,
-    hparams.dest_vocab_size,
-    hparams.split_pattern,
+    data=dataset.text,
+    vocab_size=hparams.dest_vocab_size,
+    pat=hparams.split_pattern,
+    special_tokens=hparams.special_tokens,
     verbose=True,
   )
 
@@ -174,3 +177,6 @@ if __name__ == "__main__":
   os.makedirs(hparams.tokenizer_dir, exist_ok=True)
   with open(hparams.tokenizer_json, "w") as f:
     tok.dump(f)
+
+if __name__ == "__main__":
+  main()

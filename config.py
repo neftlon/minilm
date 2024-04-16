@@ -1,4 +1,4 @@
-import keyword, os, typing
+import dataset, keyword, os, typing
 
 def python_pattern():
   "A splitting pattern suitable for the Python programming language"
@@ -18,6 +18,9 @@ class CodeExperimentHparams(typing.NamedTuple):
 
   # dataset configuration
   train_test_split_fraction: float = .9
+
+  def get_text_dataset(self):
+    return dataset.CodeDataset.create()
 
   # tokenizer configuration
   tokenizer_dir: str = "tokenizers"
@@ -39,7 +42,6 @@ class CodeExperimentHparams(typing.NamedTuple):
   log_interval: int = 100
   learning_rate: float = 1e-4
   batch_size: int = 100
-    
 
 def get_config():
   return CodeExperimentHparams()

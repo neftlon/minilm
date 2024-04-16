@@ -139,7 +139,14 @@ class Bpe:
 
   @classmethod
   def load(cls, f):
-    d = json.load(f)
+    # accept a path or a file handle
+    if isinstance(f, str):
+      with open(f) as f:
+        d = json.load(f)
+    else:
+      d = json.load(f)
+    
+    # extract fields from JSON
     vocab = {int(i): bytes(bs) for i, bs in d["vocab"].items()}
     merges = {tuple(tup): int(i) for i, tup in d["inv_merges"].items()}
     return cls(
@@ -151,13 +158,14 @@ class Bpe:
     )
 
 if __name__ == "__main__":
-  # obtain hyper parameters for this run
+  # obtain hyper parameters and dataset for this run
   hparams = config.get_config()
+  dataset = hparams.get_text_dataset()
 
   # train tokenizer on whole dataset
-  import dataset
   tok = Bpe.train(
-    dataset.raw(), hparams.dest_vocab_size,
+    dataset.text,
+    hparams.dest_vocab_size,
     hparams.split_pattern,
     verbose=True,
   )

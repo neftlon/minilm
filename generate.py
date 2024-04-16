@@ -5,11 +5,11 @@ import jax, jax.numpy as jnp, jax.random as jr
 
 # get command line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("-t", "--tokenizer", type=argparse.FileType("r"), default="models/tokenizer.json")
+parser.add_argument("-t", "--tokenizer", type=argparse.FileType("r"), default="tokenizers/code.json")
 args = parser.parse_args()
 
 # load model and tokenizer
-model, params = checkpoint.load_checkpoint()
+model, params = checkpoint.load_checkpoint("models/code")
 if model is None or params is None:
   print("could not find checkpoint. make sure to run train.py before generate.py.")
   sys.exit(-1)
@@ -25,7 +25,7 @@ def pred(key, x):
   return key, jr.categorical(subkey, logits)
 
 # start from random vector
-L = 25 # TODO: where can this be fetched?
+L = model.seq_len # TODO: where can this be fetched?
 key = jr.key(1337)
 key, subkey = jr.split(key)
 raw = jr.randint(subkey, (L,), 0, vocab_size).tolist()
@@ -36,4 +36,4 @@ while True:
   raw.append(elem.item())
   # print result and wait
   print(tok.decode(raw[-1:]), end="", flush=True)
-  time.sleep(50e-3)
+  time.sleep(25e-3)

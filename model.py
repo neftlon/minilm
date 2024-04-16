@@ -163,19 +163,21 @@ class MhSaDecBlock(typing.NamedTuple):
     )
 
 class Miniformer(typing.NamedTuple):
+  seq_len: int # even though it could be inferred, the transformer was trained for this sequence length
   ce: Embedding # char embedding
   pe: Embedding # positional embedding
   num_blocks: int
   block_template: MhSaDecBlock
 
   def __call__(self, params, x, return_scores=False):
-    L = x.shape[-1]
+    assert self.seq_len == x.shape[-1]
+
     # pre-apply parameters to layers
     ce, pe = (functools.partial(l, p) for l, p in zip((self.ce, self.pe), params))
     ce_params = params[0]
 
     # run input through model
-    x = ce(x) + pe(jnp.arange(L)) # positional embedding will be cast to batch
+    x = ce(x) + pe(jnp.arange(self.seq_len)) # positional embedding will be cast to batch
     alphas = []
     for block_params in params[-1]:
       x, block_alphas = self.block_template(block_params, x, return_scores=True)
@@ -192,8 +194,9 @@ class Miniformer(typing.NamedTuple):
     return self.ce.init(keys[0]), self.pe.init(keys[1]), block_params
 
   @classmethod
-  def from_spec(cls, num_blocks: int, vocab_size: int, emb_dim: int, num_heads: int, hidden_dim: int):
+  def from_spec(cls, seq_len: int, num_blocks: int, vocab_size: int, emb_dim: int, num_heads: int, hidden_dim: int):
     return cls(
+      seq_len=seq_len,
       ce=Embedding(vocab_size, emb_dim),
       pe=Embedding(vocab_size, emb_dim),
       num_blocks=num_blocks,

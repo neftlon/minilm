@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # this code is copied from https://github.com/karpathy/minbpe/blob/master/minbpe/regex.py
 
-import collections, dataclasses, functools, json, keyword, os, regex as re
+import collections, config, dataclasses, functools, json, os, regex as re, tqdm
 
 @dataclasses.dataclass
 class Bpe:
@@ -11,6 +11,11 @@ class Bpe:
   special_tokens: dict[str, int]
   split_pattern: str
   compiled_split_pattern: re.Pattern
+
+  @property
+  def num_tokens(self):
+    "Upper bound on token range of this tokenizer"
+    return len(self.vocab) + len(self.special_tokens)
 
   def encode_ordinary(self, text):
     chunks = re.findall(self.compiled_split_pattern, text) if self.split_pattern is not None else [text]
@@ -73,7 +78,8 @@ class Bpe:
 
     # merge most common pair
     merges = {}
-    for merge_idx in range(num_merges):
+    r = tqdm.trange if verbose else range
+    for merge_idx in (pbar := r(num_merges)):
       # count occurrence count of each pair
       stats = collections.Counter()
       for chunk in chunks:
@@ -88,7 +94,7 @@ class Bpe:
       # replace occurrences of pair with new index
       chunks = [Bpe._replace_pair(chunk, pair, new) for chunk in chunks]
       if verbose:
-        print(f"merge {merge_idx+1}/{num_merges}: {pair} -> {new} ({vocab[new]}) occurred {stats[pair]} times")
+        pbar.write(f"merge {merge_idx+1}/{num_merges}: {pair} -> {new} ({vocab[new]}) occurred {stats[pair]} times")
     
     if special_tokens is None:
       special_tokens = {}
@@ -123,13 +129,6 @@ class Bpe:
   def inv_special_tokens(self):
     return {i: t for t, i in self.special_tokens.items()}
   
-  @staticmethod
-  def python_pattern():
-    "A splitting pattern suitable for the Python programming language"
-    atoms = ":><=@#$%^.,/"
-    delims = [r"\(", r"\)", r"\{", r"\}", r"\[", r"\]", "==", ">=", "<=",r"\\"] + list(atoms) + keyword.kwlist
-    return r"\w+|" + "|".join(delims) + r"|\S+|\n|\s+"
-  
   def dump(self, f):
     json.dump({
       "vocab": {i: list(bs) for i, bs in self.vocab.items()}, # convert bytes to list of ints
@@ -152,17 +151,18 @@ class Bpe:
     )
 
 if __name__ == "__main__":
+  # obtain hyper parameters for this run
+  hparams = config.get_config()
+
   # train tokenizer on whole dataset
   import dataset
   tok = Bpe.train(
-    dataset.raw(), 500,
-    Bpe.python_pattern(),
+    dataset.raw(), hparams.dest_vocab_size,
+    hparams.split_pattern,
     verbose=True,
   )
 
-  # dump tokenizer to models directory
-  models_path = "models"
-  os.makedirs(models_path, exist_ok=True)
-  tokenizer_path = os.path.join(models_path, "tokenizer.json")
-  with open(tokenizer_path, "w") as f:
+  # dump tokenizer to tokenizers directory
+  os.makedirs(hparams.tokenizer_dir, exist_ok=True)
+  with open(hparams.tokenizer_json, "w") as f:
     tok.dump(f)

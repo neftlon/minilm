@@ -54,7 +54,7 @@ def chat_pattern():
 class ChatExperimentHparams(typing.NamedTuple):
   # experiment settings
   experiment_name: str = "chat"
-  seq_len: int = 50
+  seq_len: int = 100
 
   @property
   def save_dir(self):
@@ -81,10 +81,10 @@ class ChatExperimentHparams(typing.NamedTuple):
     return tokenizer.Bpe.load(self.tokenizer_json)
 
   # model configuration
-  num_blocks: int = 5
-  emb_dim: int = 50
-  num_heads: int = 4
-  hidden_dim: int = 100
+  num_blocks: int = 6
+  emb_dim: int = 200
+  num_heads: int = 8
+  hidden_dim: int = 1000
 
   # optimizer preferences
   num_epochs: int = 50000

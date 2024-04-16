@@ -22,10 +22,10 @@ params = model.init(subkey)
 num_params = sum(jax.tree.flatten(jax.tree.map(lambda p: p.size, params))[0])
 opt = optim.Adam(alpha=hparams.learning_rate)
 opt_state = opt.init(params)
-print(f"num params: {num_params / 1e3:.02f}k")
+print(f"num params: {num_params / 1e6:.03f}m")
 
 @functools.partial(jax.jit, static_argnames=["model", "split", "subset_size"])
-def acc(model, params, key, split, subset_size=1000):
+def acc(model, params, key, split, subset_size=500):
   split = {"train": train, "test": test}[split]
   batch = split.sample(key, model.seq_len + 1, num_samples=subset_size)
   x, y = batch[:,:-1], batch[:,1:]
@@ -55,11 +55,11 @@ for epoch in (pbar := tqdm.trange(1, 1 + hparams.num_epochs)):
 
   # bookkeeping via progress bar
   if (epoch % hparams.log_interval) == 0:
-    stats = {"NLL": lossval.item()}
+    stats = {"nll": lossval.item()}
     key, subkey = jr.split(key)
-    for short, split in (("Atr", "train"), ("Ate", "test")):
+    for short, split in (("acc_tr", "train"), ("acc_te", "test")):
       stats[short] = acc(model, params, subkey, split).item()
-    pbar.set_description(" ".join(f"%s: %.02f" % tup for tup in stats.items()))
+    pbar.write(", ".join(f"%s=%.03f" % tup for tup in stats.items()))
 
 # save model
 if hparams.save_dir is not None:

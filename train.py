@@ -3,7 +3,7 @@ import functools
 import jax, jax.numpy as jnp, jax.random as jr, tqdm
 from model import Miniformer
 from tokenizer import Bpe
-import dataset, checkpoint, config
+import dataset, checkpoint, config, optim
 
 # get experiment configuration
 hparams = config.get_config()
@@ -25,11 +25,13 @@ def get_batch(key, sample_len, batch_size, split="train"):
   start_ix = jr.randint(key, (batch_size,), 0, len(dataset) - sample_len + 1)
   return jax.vmap(jax.lax.dynamic_slice_in_dim, (None,0,None))(dataset, start_ix, sample_len)
 
-# instantiate model
+# instantiate model and optimizer
 model = Miniformer.from_spec(hparams.seq_len, hparams.num_blocks, tok.num_tokens, hparams.emb_dim, hparams.num_heads, hparams.hidden_dim)
 key, subkey = jr.split(key)
 params = model.init(subkey)
 num_params = sum(jax.tree.flatten(jax.tree.map(lambda p: p.size, params))[0])
+opt = optim.Adam(alpha=hparams.learning_rate)
+opt_state = opt.init(params)
 print(f"num params: {num_params / 1e3:.02f}k")
 
 @functools.partial(jax.jit, static_argnames=["model", "split", "subset_size"])
@@ -43,24 +45,25 @@ def loss(model, params, x, y):
   logits = jax.nn.log_softmax(y_pred)
   return -jnp.mean(jnp.sum(jax.nn.one_hot(y, tok.num_tokens) * logits, axis=-1))
 
-@functools.partial(jax.jit, static_argnames=["model"])
-def update_step(model, params, key):
+@functools.partial(jax.jit, static_argnames=["model", "opt"])
+def update_step(model, params, opt, opt_state, key):
   # generate a batch of data
   batch = get_batch(key, model.seq_len + 1, hparams.batch_size)
   x, y = batch[:,:-1], batch[:,1:]
   # compute loss and gradients
   lossval, grads = jax.value_and_grad(loss, argnums=1)(model, params, x, y)
   # update parameters
-  return lossval, jax.tree.map(lambda p, g: p - hparams.learning_rate * g, params, grads)
+  opt_state, params = opt.step(opt_state, params, grads)
+  return lossval, opt_state, params
 
 # run training
 for epoch in (pbar := tqdm.trange(1, 1 + hparams.num_epochs)):
   # run update
   key, subkey = jr.split(key)
-  lossval, params = update_step(model, params, subkey)
+  lossval, opt_state, params = update_step(model, params, opt, opt_state, subkey)
 
   # bookkeeping via progress bar
-  if (epoch % 1000) == 0:
+  if (epoch % hparams.log_interval) == 0:
     stats = {"NLL": lossval.item()}
     key, subkey = jr.split(key)
     for short, split in (("Atr", "train"), ("Ate", "test")):

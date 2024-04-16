@@ -11,7 +11,7 @@ class CodeExperimentHparams(typing.NamedTuple):
   # experiment settings
   experiment_name = "code"
   seq_len: int = 50
-  
+
   @property
   def save_dir(self):
     return os.path.join("models", self.experiment_name)
@@ -35,10 +35,10 @@ class CodeExperimentHparams(typing.NamedTuple):
   hidden_dim: int = 100
 
   # optimizer preferences
-  num_epochs: int = 20000
-  log_interval: int = 1000
-  learning_rate: float = 5e-2
-  batch_size: int = 250
+  num_epochs: int = 50000
+  log_interval: int = 100
+  learning_rate: float = 1e-4
+  batch_size: int = 100
     
 
 def get_config():
